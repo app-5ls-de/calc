@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Calc</title>
+  <!-- <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"> -->
+  <script src="mathjs-v7.0.1/math.min.js"></script>
+  <script src="mathjax-v3.0.5/tex-chtml.js"></script>
+  <script src="codemirror-v5.54.0/lib/codemirror.js"></script>
+  <script src="codemirror-v5.54.0/addon/edit/matchbrackets.js"></script>
+  <script src="codemirror-v5.54.0/addon/edit/closebrackets.js"></script>
+  <link rel="stylesheet" href="codemirror-v5.54.0/lib/codemirror.css">
+
+  <style>
+    .CodeMirror,
+    body {
+      font-size: 3rem;
+    }
+
+    body,
+    html {
+      margin: 0;
+      padding: 0;
+      font-family: verdana, arial, sans-serif;
+    }
+
+    .CodeMirror {
+      height: fit-content;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Input</h1>
+  <textarea id="input" name="input" rows="1"></textarea>
+  <h1>Pretty</h1>
+  <div id="pretty">$$$$</div>
+  <h1>Result</h1>
+  <div id="result"></div>
+
+
+
+  <script>
+
+    const input = document.getElementById('input')
+    const pretty = document.getElementById('pretty')
+    const result = document.getElementById('result')
+
+    var editor = CodeMirror.fromTextArea(input, {
+      matchBrackets: true,
+      autofocus: true,
+      inputStyle: "textarea",
+      autoCloseBrackets: true
+    });
+
+    var doc = editor.getDoc();
+
+    function restartBlink() {
+      /* if (!cm.state.focused) { return } */
+      var display = editor.display;
+      clearInterval(display.blinker);
+      var on = true;
+      display.cursorDiv.style.visibility = "";
+      if (editor.options.cursorBlinkRate > 0) {
+        display.blinker = setInterval(function () { return display.cursorDiv.style.visibility = (on = !on) ? "" : "visible"; }, /* changed to "visible"  */
+          editor.options.cursorBlinkRate);
+      }
+      else if (editor.options.cursorBlinkRate < 0) { display.cursorDiv.style.visibility = "hidden"; }
+    }
+
+    function insertTextAtCursor(text) {
+      var cursor = doc.getCursor();
+      doc.replaceRange(text, cursor);
+    }
+
+
+    editor.on('blur', function () {
+      setTimeout(function () { restartBlink(); /* editor.focus(editor) */ }, 1)
+      document.getElementsByClassName("CodeMirror-cursors")[0].style.visibility = "visible"
+    });
+
+
+    // now disallow adding newlines in the following simple way
+    editor.on("beforeChange", function (instance, change) {
+      var newtext = change.text.join("").replace(/\n/g, ""); // remove ALL \n !
+      change.update(change.from, change.to, [newtext]);
+      return true;
+    });
+
+    editor.on("changes", onchanges)
+
+    function onchanges() {
+
+      let node = null
+
+      try {
+        // parse the expression
+        node = math.parse(editor.getValue())
+
+        // evaluate the result of the expression
+        result.innerHTML = math.format(node.compile().evaluate())
+      }
+      catch (err) {
+        result.innerHTML = '<span style="color: red;">' + err.toString() + '</span>'
+      }
+
+      try {
+        // export the expression to LaTeX
+        if (node) {
+          const latex = node.toTex({ parenthesis: 'auto', implicit: true })
+          pretty.innerHTML = '$$' + latex + '$$'
+          MathJax.typeset()
+        }
+      }
+      catch (err) { }
+
+    }
+  </script>
+
+</body>
+
+</html>
